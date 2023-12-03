@@ -1,0 +1,46 @@
+version: '3.7'
+
+networks:
+  cluster:
+
+services:
+  monitorer:
+    build: .
+    ports:
+      - 8005:8005
+    entrypoint: ["python", "main.py"]
+    networks:
+      - cluster
+    environment:
+      ROUTER_PASSWORD: ${ROUTER_PASSWORD:-}
+  prometheus:
+    image: prom/prometheus:latest
+    user: ${UID}:${GID}
+    init: true
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - ./apps-data/.prometheus:/prometheus/data
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.listen-address=${PROMETHEUS_ADDRESS:-0.0.0.0:9099}'
+      - '--storage.tsdb.retention.time=1y'
+      - '--web.enable-remote-write-receiver'
+    networks:
+      - cluster
+    ports:
+      - ${PROMETHEUS_PORT:-9099}:${PROMETHEUS_PORT:-9099}
+    restart: unless-stopped
+
+  
+  grafana:
+    image: grafana/grafana:10.1.0-ubuntu
+    user: ${UID}:${GID}
+    init: true
+    networks:
+      - cluster
+    ports: 
+      - 3000:3000
+    volumes:
+      - ./apps-data/.grafana:/var/lib/grafana
